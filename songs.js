@@ -3,9 +3,11 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const app = express();
-const port = process.env.PORT || 4000;
-const url = "mongodb://proboys777333:pritambhai@ac-rrmx7kp-shard-00-00.5kqktya.mongodb.net:27017,ac-rrmx7kp-shard-00-01.5kqktya.mongodb.net:27017,ac-rrmx7kp-shard-00-02.5kqktya.mongodb.net:27017/?ssl=true&replicaSet=atlas-67jp7r-shard-0&authSource=admin&retryWrites=true&w=majority";
-mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true })
+require('dotenv').config();
+const port = process.env.PORT || 5000;
+const MongoUrl = process.env.URL;
+const Song = require("./db/dbschema")
+mongoose.connect(MongoUrl, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('Connected to Database Successfully!'))
   .catch((err) => { console.error("Error is" + err); });
 //--------------------------------------------------------
@@ -13,18 +15,26 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(cors());
 
-// Define a song schema
-const songSchema = new mongoose.Schema({
-  link: {
-    type: String,
-  },
+
+  // Backend API endpoint for file upload
+app.post('/song/upload', async (req, res) => {
+  try {
+    const link = req.body.link;
+
+    // Create a new song document
+    const song = new Song({ link });
+
+    // Save the song document to the database
+    await song.save();
+    res.status(200).json({song });
+  } catch (err) {
+    console.error('Error uploading file:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
-// Create a song model
-const Song = mongoose.model('Song', songSchema);
-
-// Endpoint to handle storing song links
-app.post('/song', async (req, res) => {
+// Backend API endpoint for adding a link
+app.post('/song/link', async (req, res) => {
   try {
     const link = req.body.link;
 
@@ -34,21 +44,18 @@ app.post('/song', async (req, res) => {
     // Save the song document to the database
     await song.save();
 
-    res.status(200).json({ _Id: song._id, message: 'Song link stored successfully' });
+    res.status(200).json({song});
   } catch (err) {
-    console.error('Error storing song link:', err);
+    console.error('Error adding link:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-
-
-// Endpoint to respond with "hello"
 // Endpoint to get all songs
 app.get('/list', async (req, res) => {
   try {
     const songs = await Song.find();
-    res.status(200).json(songs);
+    res.status(200).json({songs});
   } catch (err) {
     console.error('Error retrieving songs:', err);
     res.status(500).json({ message: 'Internal server error' });
@@ -56,43 +63,19 @@ app.get('/list', async (req, res) => {
 });
 
 
-
-app.delete('/del1/:id', async (req, res) => {
-  const fileId = req.params.id;
-
+app.delete('/song/:id', async (req, res) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(fileId)) {
-      console.error('Invalid fileId:', fileId);
-      return res.status(400).send('Invalid fileId');
-    }
+    const id = req.params.id;
 
-    await Song.findOneAndDelete({ _id: fileId });
-    console.log('Item deleted successfully from the database.');
-    res.status(200).send('Item deleted successfully from the database.');
+    // Delete the song document from the database
+    await Song.findByIdAndDelete(id);
+
+    res.sendStatus(200);
   } catch (error) {
-    console.error('Failed to delete item from the database.', error);
-    res.status(500).send('Failed to delete item from the database.');
+    res.status(500).json({ error: 'Failed to delete item' });
   }
 });
 
-
-
-
-app.delete('/del2/:id', async (req, res) => {
-  const fileId = req.params.id;
-  try {
-    if (!mongoose.Types.ObjectId.isValid(fileId)) {
-      console.error('Invalid fileId:', fileId);
-      return res.status(400).send('Invalid fileId');
-    }
-    await Song.findOneAndDelete({ _id: fileId });
-    console.log('Item deleted successfully from the database.');
-    res.status(200).send('Item deleted successfully from the database.');
-  } catch (error) {
-    console.error('Failed to delete item from the database.', error);
-    res.status(500).send('Failed to delete item from the database.');
-  }
-});
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
